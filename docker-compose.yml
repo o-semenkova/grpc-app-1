@@ -1,0 +1,49 @@
+version: '2'
+services:
+  master-grpc:
+    expose:
+      - "9090"
+    build:
+      context: master-grpc
+      dockerfile: Dockerfile
+    image: master-grpc:latest
+    ports:
+      - 18800-18888:8082
+    networks:
+      - grpc-network
+  secondary-grpc:
+    expose:
+      - "9093"
+    build:
+      context: secondary-grpc
+      dockerfile: Dockerfile
+    image: secondary-grpc:latest
+    ports:
+      - 19900-19999:8083
+    networks:
+      - grpc-network
+  secondary-grpc-second:
+    expose:
+      - "9094"
+    build:
+      context: secondary-grpc-second
+      dockerfile: Dockerfile
+    image: secondary-grpc-second:latest
+    ports:
+      - 29900-29999:8084
+    networks:
+        - grpc-network
+  sender:
+    expose:
+      - "9092"
+    build:
+      context: sender
+      dockerfile: Dockerfile
+    image: sender:latest
+    ports:
+      - 17700:8081
+    networks:
+      - grpc-network
+networks:
+  grpc-network:
+    driver: bridge
