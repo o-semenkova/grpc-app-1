@@ -1,10 +1,13 @@
 package com.grpc;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 
@@ -34,11 +37,45 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
       responseObserver.onCompleted();
       appendMessageService.append(msg);
     } else {
-      String status = appendMessageService.append(msg);
-      ack = LogMessageAck.newBuilder().setStatus(status).build();
+      List<Future<LogMessageAck>> futures = appendMessageService.append(msg);
+      boolean responsesIsReady = false;
+      while (!responsesIsReady) {
+        if(msg.getW() == 3) {
+          responsesIsReady = futures.stream().allMatch(Future::isDone);
+        } else {
+          responsesIsReady = futures.stream().anyMatch(Future::isDone);
+        }
+      }
+
+//      boolean isSuccessful = false;
+//      if(responsesIsReady) {
+//        if(msg.getW() == 3) {
+//          isSuccessful = futures.stream().allMatch(f -> isOK(f));
+//        } else {
+//          isSuccessful = futures.stream().anyMatch(f -> isOK(f));
+//        }
+//      }
+
+      if(responsesIsReady) {
+        ack = LogMessageAck.newBuilder().setStatus(Status.OK.toString()).build();
+      } else {
+        ack = LogMessageAck.newBuilder().setStatus(Status.DATA_LOSS.toString()).build();
+      }
+
+//      ack = LogMessageAck.newBuilder().setStatus(Status.OK.toString()).build();
       responseObserver.onNext(ack);
       responseObserver.onCompleted();
     }
+  }
+
+  private boolean isOK(Future<LogMessageAck> f){
+    boolean isOK = false;
+    try{
+      isOK = f.get().getStatus().equals(Status.OK.toString());
+    } catch(Exception e) {
+
+    }
+    return isOK;
   }
 
   private String convertWithStream(Map<Long, String> map) {
