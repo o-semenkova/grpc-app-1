@@ -1,10 +1,12 @@
 package com.grpc;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.Future;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import io.grpc.Status;
@@ -29,53 +31,42 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
                                .setW(request.getW())
                                .setMsg(request.getMsg())
                                .build();
-    messages.put(internalId, "id=" + internalId +" w=" + request.getW() + " msg=" + request.getMsg());
-    LogMessageAck ack;
-    if (msg.getW() == 1) {
-      ack = LogMessageAck.newBuilder().setStatus("OK").build();
-      responseObserver.onNext(ack);
-      responseObserver.onCompleted();
-      appendMessageService.append(msg);
-    } else {
-      List<Future<LogMessageAck>> futures = appendMessageService.append(msg);
-      boolean responsesIsReady = false;
-      while (!responsesIsReady) {
-        if(msg.getW() == 3) {
-          responsesIsReady = futures.stream().allMatch(Future::isDone);
-        } else {
-          responsesIsReady = futures.stream().anyMatch(Future::isDone);
-        }
+    messages.put(internalId, "id=" + internalId + " w=" + request.getW() + " msg=" + request.getMsg());
+
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    CountDownLatch cl = new CountDownLatch(msg.getW() - 1);
+
+    executor.execute(() -> {
+
+      LogMessageAck ack = appendMessageService.append(msg, "secondary-grpc", 9093);
+      if (ack.getStatus().equals(Status.OK.getCode().toString())) {
+                cl.countDown();
       }
+    });
 
-//      boolean isSuccessful = false;
-//      if(responsesIsReady) {
-//        if(msg.getW() == 3) {
-//          isSuccessful = futures.stream().allMatch(f -> isOK(f));
-//        } else {
-//          isSuccessful = futures.stream().anyMatch(f -> isOK(f));
-//        }
-//      }
+    executor.execute(() -> {
 
-      if(responsesIsReady) {
-        ack = LogMessageAck.newBuilder().setStatus(Status.OK.toString()).build();
-      } else {
-        ack = LogMessageAck.newBuilder().setStatus(Status.DATA_LOSS.toString()).build();
+      LogMessageAck ack = appendMessageService.append(msg, "secondary-grpc-second", 9094);
+      if (ack.getStatus().equals(Status.OK.getCode().toString())) {
+                cl.countDown();
       }
+    });
 
-//      ack = LogMessageAck.newBuilder().setStatus(Status.OK.toString()).build();
-      responseObserver.onNext(ack);
-      responseObserver.onCompleted();
+    try {
+      cl.await();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
-  }
-
-  private boolean isOK(Future<LogMessageAck> f){
-    boolean isOK = false;
-    try{
-      isOK = f.get().getStatus().equals(Status.OK.toString());
-    } catch(Exception e) {
-
+    executor.shutdown();
+    try {
+      executor.awaitTermination(2, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
-    return isOK;
+
+    LogMessageAck ack = LogMessageAck.newBuilder().setStatus(Status.OK.toString()).build();
+    responseObserver.onNext(ack);
+    responseObserver.onCompleted();
   }
 
   private String convertWithStream(Map<Long, String> map) {
