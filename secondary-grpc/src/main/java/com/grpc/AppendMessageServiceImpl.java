@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -43,7 +44,11 @@ public class AppendMessageServiceImpl extends com.grpc.AppendMessageServiceGrpc.
     List<Long> keys = messageKeys.getIdList();
     // messageKeys.getIdList - unmodifiable collection - no need to sort()
     //    Collections.sort(keys);
-    channel.shutdownNow();
+    try {
+      channel.shutdown().awaitTermination(600, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     return keys;
   }
 

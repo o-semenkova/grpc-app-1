@@ -44,6 +44,17 @@ services:
       - 17700:8081
     networks:
       - grpc-network
+  sender2:
+    expose:
+      - "9095"
+    build:
+      context: sender-2
+      dockerfile: Dockerfile
+    image: sender2:latest
+    ports:
+      - 16600:8082
+    networks:
+      - grpc-network
 networks:
   grpc-network:
     driver: bridge
