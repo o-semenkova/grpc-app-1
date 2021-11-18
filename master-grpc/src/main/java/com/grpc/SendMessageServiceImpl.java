@@ -1,6 +1,8 @@
 package com.grpc;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -78,5 +80,9 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
 
   public String getAllMessages() {
     return convertWithStream(messages);
+  }
+
+  public NavigableSet<Long> getCurrentMessagesKeys() {
+    return messages.navigableKeySet();
   }
 }
