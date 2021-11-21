@@ -1,6 +1,7 @@
 version: '2'
 services:
   master-grpc:
+    container_name: master-grpc
     expose:
       - "9090"
     build:
@@ -12,6 +13,7 @@ services:
     networks:
       - grpc-network
   secondary-grpc:
+    container_name: secondary-grpc
     expose:
       - "9093"
     build:
@@ -23,6 +25,7 @@ services:
     networks:
       - grpc-network
   secondary-grpc-second:
+    container_name: secondary-grpc-second
     expose:
       - "9094"
     build:
@@ -34,6 +37,7 @@ services:
     networks:
         - grpc-network
   sender:
+    container_name: sender
     expose:
       - "9092"
     build:
@@ -45,6 +49,7 @@ services:
     networks:
       - grpc-network
   sender2:
+    container_name: sender2
     expose:
       - "9095"
     build:

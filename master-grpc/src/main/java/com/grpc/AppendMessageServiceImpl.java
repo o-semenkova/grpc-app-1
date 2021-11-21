@@ -10,11 +10,11 @@ import io.grpc.ManagedChannelBuilder;
 @Service
 public class AppendMessageServiceImpl {
 
-@Retryable(value = {RuntimeException.class, RetryException.class}, maxAttempts = 200000, backoff = @Backoff(delay = 100))
+@Retryable(value = RuntimeException.class, maxAttempts = 200000, backoff = @Backoff(delay = 100))
   public LogMessageAck append(LogMessage msg, String host, int port) {
     return appendMsg(host, port, msg);
   }
-  @Retryable(value = {RuntimeException.class, RetryException.class}, maxAttempts = 200000, backoff = @Backoff(delay = 100))
+  @Retryable(value = RuntimeException.class, maxAttempts = 200000, backoff = @Backoff(delay = 100))
   private LogMessageAck appendMsg(String host, int port, LogMessage msg) {
     ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
                                                   .usePlaintext()
