@@ -14,20 +14,10 @@ message LogMessageAck {
   string status = 2;
 }
 
-message MessageKey {
-  repeated int64 id = 1;
-}
-
-message EmptyParams{}
-
 service SendMessageService {
   rpc send(LogMessage) returns (LogMessageAck);
 }
 
 service AppendMessageService {
   rpc append(LogMessage) returns (LogMessageAck);
-}
-
-service GetCurrentMasterMessageKeysService {
-  rpc getCurrentMessageKeys(EmptyParams) returns (MessageKey);
 }

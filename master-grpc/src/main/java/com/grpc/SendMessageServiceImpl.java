@@ -1,6 +1,5 @@
 package com.grpc;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.concurrent.ConcurrentNavigableMap;
@@ -9,7 +8,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -20,20 +23,22 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
 
   private ConcurrentNavigableMap<Long, String> messages = new ConcurrentSkipListMap<>();
   private AppendMessageServiceImpl appendMessageService;
-  private Long counter = 1L;
+  private AtomicLong counter = new AtomicLong(0);
+  Logger logger = LoggerFactory.getLogger(SendMessageServiceImpl.class);
 
   public SendMessageServiceImpl(AppendMessageServiceImpl appendMessageService) {
     this.appendMessageService = appendMessageService;
   }
 
   public void send(LogMessage request, StreamObserver<LogMessageAck> responseObserver) {
-    Long internalId = counter++;
+    Long internalId = counter.addAndGet(1);
     LogMessage msg = LogMessage.newBuilder()
                                .setId(internalId)
                                .setW(request.getW())
                                .setMsg(request.getMsg())
                                .build();
     messages.put(internalId, "id=" + internalId + " w=" + request.getW() + " msg=" + request.getMsg());
+    logger.info("Message: id="+ internalId + " w=" + request.getW() + " text=" + request.getMsg() + " was stored to Master.");
 
     ExecutorService executor = Executors.newFixedThreadPool(2);
     CountDownLatch cl = new CountDownLatch(msg.getW() - 1);
@@ -42,6 +47,7 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
 
       LogMessageAck ack = appendMessageService.append(msg, "secondary-grpc", 9093);
       if (ack.getStatus().equals(Status.OK.getCode().toString())) {
+        logger.info("Message: id="+ internalId + " w=" + request.getMsg() + " text=" + request.getMsg() + " was stored to Secondary 1.");
                 cl.countDown();
       }
     });
@@ -50,6 +56,7 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
 
       LogMessageAck ack = appendMessageService.append(msg, "secondary-grpc-second", 9094);
       if (ack.getStatus().equals(Status.OK.getCode().toString())) {
+        logger.info("Message: id="+ internalId + " w=" + request.getMsg() + " text=" + request.getMsg() + " was stored to Secondary 2.");
                 cl.countDown();
       }
     });
@@ -80,9 +87,5 @@ public class SendMessageServiceImpl extends SendMessageServiceGrpc.SendMessageSe
 
   public String getAllMessages() {
     return convertWithStream(messages);
-  }
-
-  public NavigableSet<Long> getCurrentMessagesKeys() {
-    return messages.navigableKeySet();
   }
 }
